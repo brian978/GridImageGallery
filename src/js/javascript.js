@@ -7,7 +7,7 @@
  */
 $(document).ready(function()
 {
-    $("#grid-gallery").gridgallery({
+    var gallery = $("#grid-gallery").gridgallery({
         columns: 4,
         spacing: 3,
         defaultDimension: {
@@ -16,4 +16,6 @@ $(document).ready(function()
         },
         minWidth: 256
     });
+
+    gallery.initialize();
 });

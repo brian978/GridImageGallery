@@ -7,6 +7,11 @@
  */
 
 (function ($) {
+    /**
+     *
+     * @param options
+     * @returns {$.fn.GridGallery}
+     */
     $.fn.gridgallery = function (options) {
         /**
          *
@@ -276,8 +281,6 @@
             }
         };
 
-        // Creating the object
-        var gallery = new GridGallery($(this), options);
-        gallery.initialize();
+        return new GridGallery($(this), options);
     };
 }(jQuery));

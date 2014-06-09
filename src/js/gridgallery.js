@@ -209,7 +209,7 @@
              * @protected
              */
             getMaxWidth: function () {
-                this.maxWidth = this.target.width();
+                this.maxWidth = parseInt(window.getComputedStyle(this.target[0], null).width);
 
                 return this;
             },

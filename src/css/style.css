@@ -1,0 +1,21 @@
+#container {
+}
+
+.grid-image-gallery {
+
+}
+
+.grid-image-gallery .clear-gallery {
+    clear: both;
+}
+
+.grid-image-gallery img {
+    display: none;
+}
+
+.grid-image-gallery > span {
+    display: inline-block;
+    border: 0;
+    padding: 0;
+    float: left;
+}

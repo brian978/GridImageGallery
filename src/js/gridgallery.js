@@ -36,7 +36,7 @@
 
             /**
              * Each element will have the following format:
-             * {image: Image, img: HTMLImageElement, container: HTMLSpanElement}
+             * {image: Image, img: HTMLImageElement, container: HTMLElement}
              *
              * @type {Array}
              */
@@ -143,7 +143,7 @@
                 this.target.find(".image").each(function () {
                     imagesCount++;
                     image = new Image();
-                    image.onload = (function (span) {
+                    image.onload = (function (container) {
                         imagesLoaded++;
 
                         // Creating the image element
@@ -152,17 +152,17 @@
 
                         // Calling the callback before we append in order to allow for better customization
                         if (_this.callbacks.beforeAppend !== null) {
-                            _this.callbacks.beforeAppend.call(null, span, dom, this);
+                            _this.callbacks.beforeAppend.call(null, container, dom, this);
                         }
 
-                        // Modifying the span container
-                        span.append(dom);
+                        // Modifying the container
+                        container.append(dom);
 
                         // Storing some info about the image
                         _this.images.push({
                             image: this,
                             dom: dom,
-                            container: span
+                            container: container
                         });
 
                         // Our callback must be called only after all the images have loaded
@@ -284,10 +284,12 @@
              * @protected
              */
             displayImages: function () {
+                var container;
                 for (var idx in this.images) {
                     if (this.images.hasOwnProperty(idx)) {
-                        this.images[idx].dom.css("display", "block");
-                        this.images[idx].container.css("margin", this.spacing);
+                        container = this.images[idx].container;
+                        container.addClass("visible");
+                        container.css("margin", this.spacing);
                     }
                 }
 

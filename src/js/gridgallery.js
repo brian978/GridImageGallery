@@ -111,6 +111,13 @@
                         .resizeToFit()
                         .displayImages();
 
+                    // Since now all is loaded we need to make sure we don't
+                    // have a scroll bar that would affect the layout
+                    if (document.body.scrollHeight > document.body.clientHeight) {
+                        this.getMaxWidth()
+                            .resizeToFit();
+                    }
+
                     // Calling the callback provided by the user (if any)
                     if (typeof afterLoad == "function") {
                         afterLoad.call(null);
@@ -146,6 +153,21 @@
                     image.onload = (function (container) {
                         imagesLoaded++;
 
+                        // We might need to change the container we append to
+                        var appendContainer = container;
+
+                        // Adding what we have to to the container
+                        var href = container.data("href");
+                        if (typeof href == "string" && href.length > 0) {
+                            appendContainer = container.find("a");
+                            if (appendContainer.length <= 0) {
+                                appendContainer = $("<a></a>");
+                            }
+
+                            appendContainer.attr("href", href);
+                            container.append(appendContainer);
+                        }
+
                         // Creating the image element
                         dom = $("<img/>");
                         dom.attr("src", this.src);
@@ -155,8 +177,9 @@
                             _this.callbacks.beforeAppend.call(null, container, dom, this);
                         }
 
-                        // Modifying the container
-                        container.append(dom);
+                        // Adding what we have to to the container
+                        appendContainer.append(dom);
+
 
                         // Storing some info about the image
                         _this.images.push({

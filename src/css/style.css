@@ -23,3 +23,10 @@
     padding: 0;
     float: left;
 }
+
+.grid-image-gallery > div.image > a {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+    height: 100%
+}

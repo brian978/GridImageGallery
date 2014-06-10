@@ -140,7 +140,7 @@
             loadImages: function (afterLoad) {
                 var image, dom, imagesCount = 0, imagesLoaded = 0, _this = this;
 
-                this.target.find("span.image").each(function () {
+                this.target.find(".image").each(function () {
                     imagesCount++;
                     image = new Image();
                     image.onload = (function (span) {

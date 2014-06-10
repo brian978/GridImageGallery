@@ -13,7 +13,7 @@
     display: none;
 }
 
-.grid-image-gallery > span {
+.grid-image-gallery > div {
     display: inline-block;
     border: 0;
     padding: 0;

@@ -85,6 +85,15 @@
              * @protected
              */
             this.spacing = 5;
+
+            /**
+             *
+             * @type {Object}
+             * @protected
+             */
+            this.callbacks = {
+                beforeAppend: null
+            };
         }
 
         GridGallery.prototype = {
@@ -140,6 +149,11 @@
                         // Creating the image element
                         dom = $("<img/>");
                         dom.attr("src", this.src);
+
+                        // Calling the callback before we append in order to allow for better customization
+                        if (_this.callbacks.beforeAppend !== null) {
+                            _this.callbacks.beforeAppend.call(null, span, dom, this);
+                        }
 
                         // Modifying the span container
                         span.append(dom);
@@ -232,7 +246,7 @@
                     if (tmpWidth > this.dimensions.min.width) {
                         width = tmpWidth;
                     }
-                } while(width < 0);
+                } while (width < 0);
 
                 return width;
             },
@@ -275,6 +289,20 @@
                         this.images[idx].dom.css("display", "block");
                         this.images[idx].container.css("margin", this.spacing);
                     }
+                }
+
+                return this;
+            },
+
+            /**
+             *
+             * @param {string} name
+             * @param {Function} func
+             * @returns {GridGallery}
+             */
+            setCallback: function (name, func) {
+                if (this.callbacks.hasOwnProperty(name) && typeof func == "function") {
+                    this.callbacks[name] = func;
                 }
 
                 return this;

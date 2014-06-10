@@ -5,8 +5,7 @@
  * @copyright Copyright (c) 2014
  * @license Creative Commons Attribution-ShareAlike 3.0
  */
-$(document).ready(function()
-{
+$(document).ready(function () {
     var gallery = $("#grid-gallery").gridgallery({
         columns: 4,
         spacing: 3,

@@ -19,3 +19,20 @@
     padding: 0;
     float: left;
 }
+
+.grid-image-gallery .loading-box {
+    display: block;
+    width: 31px;
+    height: 31px;
+    margin: 0 auto;
+    position: relative;
+    top: 50%;
+}
+
+.grid-image-gallery .loading {
+    display: block;
+    width: 31px;
+    height: 31px;
+    background-image: url('../images/loading.gif');
+    margin-top: -15.5px;
+}

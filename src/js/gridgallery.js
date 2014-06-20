@@ -36,11 +36,12 @@
 
             /**
              * Each element will have the following format:
-             * {image: Image, img: HTMLImageElement, container: HTMLSpanElement}
+             * {image: Image, imgDom: HTMLImageElement, container: HTMLSpanElement, loadingDom: jQuery, specs: {width: number, height: number, src: string}}
              *
              * @type {Array}
              */
             this.images = [];
+
 
             /**
              * We need the aspect ratio to determine the height of a box
@@ -95,13 +96,15 @@
              */
             initialize: function (afterLoad) {
                 this.attachListeners();
-                this.loadImages((function () {
-                    this.calculateTargetAspectRatio()
-                        .getMaxWidth()
-                        .loadOptions()
-                        .resizeToFit()
-                        .displayImages();
 
+                this.calculateTargetAspectRatio();
+                this.loadOptions();
+                this.loadImageSpecs();
+                this.getMaxWidth();
+                this.resizeBoxes();
+                this.displayLoading();
+
+                this.loadImages((function () {
                     // Calling the callback provided by the user (if any)
                     if (typeof afterLoad == "function") {
                         afterLoad.call(null);
@@ -117,9 +120,44 @@
              */
             attachListeners: function () {
                 $(window).on("resize", (function () {
-                    this.getMaxWidth()
-                        .resizeToFit();
+                    this.getMaxWidth();
+                    this.resizeToFit();
                 }).bind(this));
+            },
+
+            /**
+             * Used to collect the specifications of the images (like the image source)
+             *
+             * @returns {GridGallery}
+             */
+            loadImageSpecs: function () {
+                var _this = this;
+
+                this.target.find("span.image").each(function () {
+                    _this.images.push({
+                        imgDom: null,
+                        loadingDom: null,
+                        container: $(this),
+                        specs: {
+                            src: $(this).data("src")
+                        }
+                    });
+                });
+
+                return this;
+            },
+
+            /**
+             *
+             * @param {string} src
+             * @returns {jQuery}
+             * @protected
+             */
+            createImageObject: function (src) {
+                var object = $("<img/>");
+                object.attr("src", src);
+
+                return object;
             },
 
             /**
@@ -129,37 +167,42 @@
              * @protected
              */
             loadImages: function (afterLoad) {
-                var image, dom, imagesCount = 0, imagesLoaded = 0, _this = this;
+                var image, imgDom, imagesCount = this.images.length, imagesLoaded = 0, _this = this;
 
-                this.target.find("span.image").each(function () {
-                    imagesCount++;
-                    image = new Image();
-                    image.onload = (function (span) {
-                        imagesLoaded++;
+                for (var idx in this.images) {
+                    if (this.images.hasOwnProperty(idx)) {
+                        image = new Image();
+                        image.onload = (function (imageData) {
+                            imagesLoaded++;
 
-                        // Creating the image element
-                        dom = $("<img/>");
-                        dom.attr("src", this.src);
+                            // Creating the image element
+                            imgDom = _this.createImageObject(imageData.specs.src);
 
-                        // Modifying the span container
-                        span.append(dom);
+                            // Updating the image data
+                            imageData.imgDom = imgDom;
+                            imageData.image = this;
 
-                        // Storing some info about the image
-                        _this.images.push({
-                            image: this,
-                            dom: dom,
-                            container: span
-                        });
+                            // Setting the dimensions of the image using the data from the container
+                            imgDom.width(imageData.specs.width);
+                            imgDom.height(imageData.specs.height);
 
-                        // Our callback must be called only after all the images have loaded
-                        if (imagesLoaded == imagesCount) {
-                            afterLoad.call(null);
-                        }
-                    }).bind(image, $(this));
+                            // Removing the loading image and replacing it with the image
+                            imageData.loadingDom.remove();
+                            imageData.container.append(imgDom);
 
-                    // Triggering the image loading
-                    image.src = $(this).data("src");
-                });
+                            // Showing the image in a nice way
+                            imgDom.css("display", "inline-block");
+
+                            // Our callback must be called only after all the images have loaded
+                            if (imagesLoaded == imagesCount) {
+                                afterLoad.call(null);
+                            }
+                        }).bind(image, this.images[idx]);
+
+                        // Triggering the image loading
+                        image.src = this.images[idx].specs.src;
+                    }
+                }
 
                 return this;
             },
@@ -210,6 +253,8 @@
             /**
              * We need to figure out what is the maximum with that we have available to add images
              *
+             * Needs to be called either at initialization or when the user resizes the window
+             *
              * @returns {GridGallery}
              * @protected
              */
@@ -220,6 +265,7 @@
             },
 
             /**
+             * Returns the maximum width that a box from the grid will have
              *
              * @returns {number}
              * @private
@@ -232,31 +278,67 @@
                     if (tmpWidth > this.dimensions.min.width) {
                         width = tmpWidth;
                     }
-                } while(width < 0);
+                } while (width < 0);
 
                 return width;
             },
 
             /**
+             * Resizes the containers of the images (call only at initialization)
+             *
+             * @returns {GridGallery}
+             * @protected
+             */
+            resizeBoxes: function () {
+                var width = this._getMaxBoxWidth();
+
+                if (width > 0) {
+                    var container, height = width / this.aspectRatio;
+                    for (var idx in this.images) {
+                        if (this.images.hasOwnProperty(idx)) {
+                            container = this.images[idx].container;
+                            container.width(width);
+                            container.height(height);
+                            container.css("margin", this.spacing);
+
+                            // Updating the specs
+                            this.images[idx].specs.width = width;
+                            this.images[idx].specs.height = height;
+                        }
+                    }
+                }
+
+                return this;
+            },
+
+            /**
+             * Resizes both the containers and the images (call only when the images are already loaded)
              *
              * @returns {GridGallery}
              * @protected
              */
             resizeToFit: function () {
-                // We need to determine the max with of the box in the grid
                 var width = this._getMaxBoxWidth();
+
                 if (width > 0) {
-                    var dom, container, height = width / this.aspectRatio;
+                    var imgDom, container, height = width / this.aspectRatio;
                     for (var idx in this.images) {
                         if (this.images.hasOwnProperty(idx)) {
-                            dom = this.images[idx].dom;
+                            // The method might get called before the image is loaded so we must make sure
+                            // we have the image first
+                            imgDom = this.images[idx].imgDom;
+                            if (imgDom !== null) {
+                                imgDom.width(width);
+                                imgDom.height(height);
+                            }
+
                             container = this.images[idx].container;
-
-                            dom.width(width);
-                            dom.height(height);
-
                             container.width(width);
                             container.height(height);
+
+                            // Updating the specs
+                            this.images[idx].specs.width = width;
+                            this.images[idx].specs.height = height;
                         }
                     }
                 }
@@ -266,14 +348,33 @@
 
             /**
              *
+             * @returns {jQuery}
+             * @private
+             */
+            _createLoading: function () {
+                var object = $("<span class=\"loading-box\"></span>");
+                object.append($("<span class=\"loading\"></span>"));
+
+                return object;
+            },
+
+            /**
+             *
              * @returns {GridGallery}
              * @protected
              */
-            displayImages: function () {
+            displayLoading: function () {
+                var data;
+
                 for (var idx in this.images) {
                     if (this.images.hasOwnProperty(idx)) {
-                        this.images[idx].dom.css("display", "block");
-                        this.images[idx].container.css("margin", this.spacing);
+                        data = this.images[idx];
+
+                        // Updating the image data
+                        data.loadingDom = this._createLoading();
+
+                        // Appending the loading image to the container
+                        data.container.append(data.loadingDom);
                     }
                 }
 

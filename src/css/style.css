@@ -12,13 +12,8 @@
 .grid-image-gallery img {
 }
 
-.grid-image-gallery > div.image.visible {
-    display: inline-block;
-}
-
 .grid-image-gallery > div.image {
     position: relative;
-    display: none;
     border: 0;
     padding: 0;
     float: left;
@@ -29,4 +24,21 @@
     display: inline-block;
     width: 100%;
     height: 100%
+}
+
+.grid-image-gallery .loading-box {
+    display: block;
+    width: 31px;
+    height: 31px;
+    margin: 0 auto;
+    position: relative;
+    top: 50%;
+}
+
+.grid-image-gallery .loading {
+    display: block;
+    width: 31px;
+    height: 31px;
+    background-image: url('../images/loading.gif');
+    margin-top: -15.5px;
 }

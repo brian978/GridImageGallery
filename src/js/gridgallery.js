@@ -36,12 +36,11 @@
 
             /**
              * Each element will have the following format:
-             * {image: Image, imgDom: HTMLImageElement, container: HTMLSpanElement, loadingDom: jQuery, specs: {width: number, height: number, src: string}}
+             * {image: Image, img: HTMLImageElement, container: HTMLElement}
              *
              * @type {Array}
              */
             this.images = [];
-
 
             /**
              * We need the aspect ratio to determine the height of a box
@@ -86,6 +85,15 @@
              * @protected
              */
             this.spacing = 5;
+
+            /**
+             *
+             * @type {Object}
+             * @protected
+             */
+            this.callbacks = {
+                beforeAppend: null
+            };
         }
 
         GridGallery.prototype = {
@@ -96,15 +104,20 @@
              */
             initialize: function (afterLoad) {
                 this.attachListeners();
-
-                this.calculateTargetAspectRatio();
-                this.loadOptions();
-                this.loadImageSpecs();
-                this.getMaxWidth();
-                this.resizeBoxes();
-                this.displayLoading();
-
                 this.loadImages((function () {
+                    this.calculateTargetAspectRatio()
+                        .getMaxWidth()
+                        .loadOptions()
+                        .resizeToFit()
+                        .displayImages();
+
+                    // Since now all is loaded we need to make sure we don't
+                    // have a scroll bar that would affect the layout
+                    if (document.body.scrollHeight > document.body.clientHeight) {
+                        this.getMaxWidth()
+                            .resizeToFit();
+                    }
+
                     // Calling the callback provided by the user (if any)
                     if (typeof afterLoad == "function") {
                         afterLoad.call(null);
@@ -120,44 +133,9 @@
              */
             attachListeners: function () {
                 $(window).on("resize", (function () {
-                    this.getMaxWidth();
-                    this.resizeToFit();
+                    this.getMaxWidth()
+                        .resizeToFit();
                 }).bind(this));
-            },
-
-            /**
-             * Used to collect the specifications of the images (like the image source)
-             *
-             * @returns {GridGallery}
-             */
-            loadImageSpecs: function () {
-                var _this = this;
-
-                this.target.find("span.image").each(function () {
-                    _this.images.push({
-                        imgDom: null,
-                        loadingDom: null,
-                        container: $(this),
-                        specs: {
-                            src: $(this).data("src")
-                        }
-                    });
-                });
-
-                return this;
-            },
-
-            /**
-             *
-             * @param {string} src
-             * @returns {jQuery}
-             * @protected
-             */
-            createImageObject: function (src) {
-                var object = $("<img/>");
-                object.attr("src", src);
-
-                return object;
             },
 
             /**
@@ -167,42 +145,58 @@
              * @protected
              */
             loadImages: function (afterLoad) {
-                var image, imgDom, imagesCount = this.images.length, imagesLoaded = 0, _this = this;
+                var image, dom, imagesCount = 0, imagesLoaded = 0, _this = this;
 
-                for (var idx in this.images) {
-                    if (this.images.hasOwnProperty(idx)) {
-                        image = new Image();
-                        image.onload = (function (imageData) {
-                            imagesLoaded++;
+                this.target.find(".image").each(function () {
+                    imagesCount++;
+                    image = new Image();
+                    image.onload = (function (container) {
+                        imagesLoaded++;
 
-                            // Creating the image element
-                            imgDom = _this.createImageObject(imageData.specs.src);
+                        // We might need to change the container we append to
+                        var appendContainer = container;
 
-                            // Updating the image data
-                            imageData.imgDom = imgDom;
-                            imageData.image = this;
-
-                            // Setting the dimensions of the image using the data from the container
-                            imgDom.width(imageData.specs.width);
-                            imgDom.height(imageData.specs.height);
-
-                            // Removing the loading image and replacing it with the image
-                            imageData.loadingDom.remove();
-                            imageData.container.append(imgDom);
-
-                            // Showing the image in a nice way
-                            imgDom.css("display", "inline-block");
-
-                            // Our callback must be called only after all the images have loaded
-                            if (imagesLoaded == imagesCount) {
-                                afterLoad.call(null);
+                        // Adding what we have to to the container
+                        var href = container.data("href");
+                        if (typeof href == "string" && href.length > 0) {
+                            appendContainer = container.find("a");
+                            if (appendContainer.length <= 0) {
+                                appendContainer = $("<a></a>");
                             }
-                        }).bind(image, this.images[idx]);
 
-                        // Triggering the image loading
-                        image.src = this.images[idx].specs.src;
-                    }
-                }
+                            appendContainer.attr("href", href);
+                            container.append(appendContainer);
+                        }
+
+                        // Creating the image element
+                        dom = $("<img/>");
+                        dom.attr("src", this.src);
+
+                        // Calling the callback before we append in order to allow for better customization
+                        if (_this.callbacks.beforeAppend !== null) {
+                            _this.callbacks.beforeAppend.call(null, container, dom, this);
+                        }
+
+                        // Adding what we have to to the container
+                        appendContainer.append(dom);
+
+
+                        // Storing some info about the image
+                        _this.images.push({
+                            image: this,
+                            dom: dom,
+                            container: container
+                        });
+
+                        // Our callback must be called only after all the images have loaded
+                        if (imagesLoaded == imagesCount) {
+                            afterLoad.call(null);
+                        }
+                    }).bind(image, $(this));
+
+                    // Triggering the image loading
+                    image.src = $(this).data("src");
+                });
 
                 return this;
             },
@@ -253,8 +247,6 @@
             /**
              * We need to figure out what is the maximum with that we have available to add images
              *
-             * Needs to be called either at initialization or when the user resizes the window
-             *
              * @returns {GridGallery}
              * @protected
              */
@@ -265,7 +257,6 @@
             },
 
             /**
-             * Returns the maximum width that a box from the grid will have
              *
              * @returns {number}
              * @private
@@ -284,61 +275,25 @@
             },
 
             /**
-             * Resizes the containers of the images (call only at initialization)
-             *
-             * @returns {GridGallery}
-             * @protected
-             */
-            resizeBoxes: function () {
-                var width = this._getMaxBoxWidth();
-
-                if (width > 0) {
-                    var container, height = width / this.aspectRatio;
-                    for (var idx in this.images) {
-                        if (this.images.hasOwnProperty(idx)) {
-                            container = this.images[idx].container;
-                            container.width(width);
-                            container.height(height);
-                            container.css("margin", this.spacing);
-
-                            // Updating the specs
-                            this.images[idx].specs.width = width;
-                            this.images[idx].specs.height = height;
-                        }
-                    }
-                }
-
-                return this;
-            },
-
-            /**
-             * Resizes both the containers and the images (call only when the images are already loaded)
              *
              * @returns {GridGallery}
              * @protected
              */
             resizeToFit: function () {
+                // We need to determine the max with of the box in the grid
                 var width = this._getMaxBoxWidth();
-
                 if (width > 0) {
-                    var imgDom, container, height = width / this.aspectRatio;
+                    var dom, container, height = width / this.aspectRatio;
                     for (var idx in this.images) {
                         if (this.images.hasOwnProperty(idx)) {
-                            // The method might get called before the image is loaded so we must make sure
-                            // we have the image first
-                            imgDom = this.images[idx].imgDom;
-                            if (imgDom !== null) {
-                                imgDom.width(width);
-                                imgDom.height(height);
-                            }
-
+                            dom = this.images[idx].dom;
                             container = this.images[idx].container;
+
+                            dom.width(width);
+                            dom.height(height);
+
                             container.width(width);
                             container.height(height);
-
-                            // Updating the specs
-                            this.images[idx].specs.width = width;
-                            this.images[idx].specs.height = height;
                         }
                     }
                 }
@@ -348,34 +303,31 @@
 
             /**
              *
-             * @returns {jQuery}
-             * @private
+             * @returns {GridGallery}
+             * @protected
              */
-            _createLoading: function () {
-                var object = $("<span class=\"loading-box\"></span>");
-                object.append($("<span class=\"loading\"></span>"));
+            displayImages: function () {
+                var container;
+                for (var idx in this.images) {
+                    if (this.images.hasOwnProperty(idx)) {
+                        container = this.images[idx].container;
+                        container.addClass("visible");
+                        container.css("margin", this.spacing);
+                    }
+                }
 
-                return object;
+                return this;
             },
 
             /**
              *
+             * @param {string} name
+             * @param {Function} func
              * @returns {GridGallery}
-             * @protected
              */
-            displayLoading: function () {
-                var data;
-
-                for (var idx in this.images) {
-                    if (this.images.hasOwnProperty(idx)) {
-                        data = this.images[idx];
-
-                        // Updating the image data
-                        data.loadingDom = this._createLoading();
-
-                        // Appending the loading image to the container
-                        data.container.append(data.loadingDom);
-                    }
+            setCallback: function (name, func) {
+                if (this.callbacks.hasOwnProperty(name) && typeof func == "function") {
+                    this.callbacks[name] = func;
                 }
 
                 return this;
